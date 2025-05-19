@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Packet Transmission Animation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        
+        .network-container {
+            display: flex;
+            justify-content: space-between;
+            margin: 50px 0;
+            position: relative;
+        }
+        
+        .device {
+            width: 100px;
+            height: 100px;
+            border: 2px solid #333;
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #f0f0f0;
+            position: relative;
+        }
+        
+        .device::after {
+            content: attr(data-name);
+            position: absolute;
+            bottom: -25px;
+            text-align: center;
+            width: 100%;
+        }
+        
+        .packet {
+            width: 30px;
+            height: 20px;
+            background-color: #4CAF50;
+            border-radius: 5px;
+            position: absolute;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        
+        .transmission-line {
+            position: absolute;
+            height: 4px;
+            background-color: #ccc;
+            top: 50%;
+            left: 110px;
+            right: 110px;
+            transform: translateY(-50%);
+        }
+        
+        .controls {
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        button {
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 0 5px;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1>Network Packet Transmission Animation</h1>
+    
+    <div class="network-container">
+        <div class="device" data-name="Client"></div>
+        <div class="transmission-line"></div>
+        <div class="device" data-name="Server"></div>
+    </div>
+    
+    <div class="controls">
+        <button id="sendPacket">Send Packet</button>
+        <button id="startAuto">Start Auto Transmission</button>
+        <button id="stopAuto">Stop Auto Transmission</button>
+    </div>
+    
+    <div id="packetInfo" style="text-align: center; margin-top: 20px;"></div>
+    
+    <script>
+        const client = document.querySelector('.device:first-child');
+        const server = document.querySelector('.device:last-child');
+        const networkContainer = document.querySelector('.network-container');
+        const packetInfo = document.getElementById('packetInfo');
+        
+        let autoInterval = null;
+        let packetCount = 0;
+        
+        function createPacket() {
+            packetCount++;
+            const packet = document.createElement('div');
+            packet.className = 'packet';
+            packet.textContent = `P${packetCount}`;
+            packet.id = `packet-${packetCount}`;
+            return packet;
+        }
+        
+        function sendPacket(from, to, callback) {
+            const packet = createPacket();
+            const fromRect = from.getBoundingClientRect();
+            const toRect = to.getBoundingClientRect();
+            const containerRect = networkContainer.getBoundingClientRect();
+            
+            // Position packet at the source device
+            packet.style.left = `${fromRect.left - containerRect.left + fromRect.width/2 - 15}px`;
+            packet.style.top = `${fromRect.top - containerRect.top + fromRect.height/2 - 10}px`;
+            
+            networkContainer.appendChild(packet);
+            
+            // Animate to destination
+            const animation = packet.animate([
+                { 
+                    left: `${fromRect.left - containerRect.left + fromRect.width/2 - 15}px`,
+                    backgroundColor: '#4CAF50'
+                },
+                { 
+                    left: `${toRect.left - containerRect.left + toRect.width/2 - 15}px`,
+                    backgroundColor: '#2196F3'
+                }
+            ], {
+                duration: 1000,
+                easing: 'ease-in-out'
+            });
+            
+            animation.onfinish = () => {
+                packetInfo.textContent = `Packet ${packetCount} delivered from ${from.getAttribute('data-name')} to ${to.getAttribute('data-name')}`;
+                packet.remove();
+                if (callback) callback();
+            };
+        }
+        
+        document.getElementById('sendPacket').addEventListener('click', () => {
+            sendPacket(client, server);
+        });
+        
+        document.getElementById('startAuto').addEventListener('click', () => {
+            if (autoInterval) clearInterval(autoInterval);
+            autoInterval = setInterval(() => {
+                sendPacket(Math.random() > 0.5 ? client : server, 
+                          Math.random() > 0.5 ? client : server);
+            }, 1500);
+        });
+        
+        document.getElementById('stopAuto').addEventListener('click', () => {
+            if (autoInterval) clearInterval(autoInterval);
+            autoInterval = null;
+        });
+    </script>
+</body>
+</html>

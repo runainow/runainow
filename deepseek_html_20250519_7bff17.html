@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TCP 3-Way Handshake Animation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        
+        .network-container {
+            display: flex;
+            justify-content: space-between;
+            margin: 50px 0;
+            position: relative;
+        }
+        
+        .device {
+            width: 120px;
+            height: 120px;
+            border: 2px solid #333;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: #f0f0f0;
+            position: relative;
+        }
+        
+        .device-name {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .device-status {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .packet {
+            width: 60px;
+            height: 30px;
+            border-radius: 5px;
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            text-align: center;
+            padding: 2px;
+        }
+        
+        .syn {
+            background-color: #4CAF50;
+        }
+        
+        .syn-ack {
+            background-color: #2196F3;
+        }
+        
+        .ack {
+            background-color: #FF9800;
+        }
+        
+        .transmission-line {
+            position: absolute;
+            height: 4px;
+            background-color: #ccc;
+            top: 50%;
+            left: 130px;
+            right: 130px;
+            transform: translateY(-50%);
+        }
+        
+        .controls {
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        button {
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 0 5px;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        .sequence-display {
+            margin-top: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        
+        .log {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #eee;
+            height: 100px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>TCP 3-Way Handshake Animation</h1>
+    
+    <div class="network-container">
+        <div class="device" id="client">
+            <div class="device-name">Client</div>
+            <div class="device-status" id="client-status">CLOSED</div>
+        </div>
+        <div class="transmission-line"></div>
+        <div class="device" id="server">
+            <div class="device-name">Server</div>
+            <div class="device-status" id="server-status">CLOSED</div>
+        </div>
+    </div>
+    
+    <div class="controls">
+        <button id="startHandshake">Start Handshake</button>
+        <button id="reset">Reset</button>
+    </div>
+    
+    <div class="sequence-display">
+        <h3>Sequence Numbers:</h3>
+        <p>Client ISN (Initial Sequence Number): <span id="client-isn">0</span></p>
+        <p>Server ISN (Initial Sequence Number): <span id="server-isn">0</span></p>
+    </div>
+    
+    <div class="log" id="handshake-log"></div>
+    
+    <script>
+        const client = document.getElementById('client');
+        const server = document.getElementById('server');
+        const clientStatus = document.getElementById('client-status');
+        const serverStatus = document.getElementById('server-status');
+        const clientISN = document.getElementById('client-isn');
+        const serverISN = document.getElementById('server-isn');
+        const handshakeLog = document.getElementById('handshake-log');
+        const networkContainer = document.querySelector('.network-container');
+        
+        let clientSeq = 0;
+        let serverSeq = 0;
+        
+        function logMessage(message) {
+            const entry = document.createElement('div');
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            handshakeLog.appendChild(entry);
+            handshakeLog.scrollTop = handshakeLog.scrollHeight;
+        }
+        
+        function createPacket(type, seq, ack) {
+            const packet = document.createElement('div');
+            packet.className = `packet ${type}`;
+            
+            let label = '';
+            if (type === 'syn') {
+                label = `SYN\nSEQ=${seq}`;
+            } else if (type === 'syn-ack') {
+                label = `SYN-ACK\nSEQ=${seq}\nACK=${ack}`;
+            } else if (type === 'ack') {
+                label = `ACK\nSEQ=${seq}\nACK=${ack}`;
+            }
+            
+            packet.textContent = label;
+            return packet;
+        }
+        
+        function animatePacket(from, to, packet, callback) {
+            const fromRect = from.getBoundingClientRect();
+            const toRect = to.getBoundingClientRect();
+            const containerRect = networkContainer.getBoundingClientRect();
+            
+            // Position packet at the source device
+            packet.style.left = `${fromRect.left - containerRect.left + fromRect.width/2 - 30}px`;
+            packet.style.top = `${fromRect.top - containerRect.top + fromRect.height/2 - 15}px`;
+            
+            networkContainer.appendChild(packet);
+            
+            // Animate to destination
+            const animation = packet.animate([
+                { 
+                    left: `${fromRect.left - containerRect.left + fromRect.width/2 - 30}px`,
+                    opacity: 1
+                },
+                { 
+                    left: `${toRect.left - containerRect.left + toRect.width/2 - 30}px`,
+                    opacity: 1
+                }
+            ], {
+                duration: 1000,
+                easing: 'ease-in-out'
+            });
+            
+            animation.onfinish = () => {
+                packet.remove();
+                if (callback) callback();
+            };
+        }
+        
+        function updateStatus(device, status) {
+            if (device === 'client') {
+                clientStatus.textContent = status;
+            } else {
+                serverStatus.textContent = status;
+            }
+        }
+        
+        function reset() {
+            clientStatus.textContent = 'CLOSED';
+            serverStatus.textContent = 'CLOSED';
+            handshakeLog.innerHTML = '';
+            clientSeq = Math.floor(Math.random() * 10000) + 1000;
+            serverSeq = Math.floor(Math.random() * 10000) + 1000;
+            clientISN.textContent = clientSeq;
+            serverISN.textContent = serverSeq;
+            logMessage('System reset. New sequence numbers generated.');
+        }
+        
+        function performHandshake() {
+            reset();
+            logMessage('Starting TCP 3-way handshake...');
+            
+            // Step 1: Client sends SYN
+            updateStatus('client', 'SYN_SENT');
+            logMessage('Client → Server: SYN (seq=' + clientSeq + ')');
+            
+            const synPacket = createPacket('syn', clientSeq, 0);
+            animatePacket(client, server, synPacket, () => {
+                updateStatus('server', 'SYN_RECEIVED');
+                
+                // Step 2: Server responds with SYN-ACK
+                setTimeout(() => {
+                    serverSeq++; // SYN consumes one sequence number
+                    logMessage('Server → Client: SYN-ACK (seq=' + serverSeq + ', ack=' + (clientSeq + 1) + ')');
+                    const synAckPacket = createPacket('syn-ack', serverSeq, clientSeq + 1);
+                    animatePacket(server, client, synAckPacket, () => {
+                        updateStatus('client', 'ESTABLISHED');
+                        
+                        // Step 3: Client responds with ACK
+                        setTimeout(() => {
+                            clientSeq++; // SYN consumes one sequence number
+                            logMessage('Client → Server: ACK (seq=' + (clientSeq + 1) + ', ack=' + (serverSeq + 1) + ')');
+                            const ackPacket = createPacket('ack', clientSeq + 1, serverSeq + 1);
+                            animatePacket(client, server, ackPacket, () => {
+                                updateStatus('server', 'ESTABLISHED');
+                                logMessage('TCP connection established!');
+                            });
+                        }, 500);
+                    });
+                }, 500);
+            });
+        }
+        
+        document.getElementById('startHandshake').addEventListener('click', performHandshake);
+        document.getElementById('reset').addEventListener('click', reset);
+        
+        // Initialize with random sequence numbers
+        reset();
+    </script>
+</body>
+</html>
