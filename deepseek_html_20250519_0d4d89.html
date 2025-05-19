@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CCNA Routing Simulator</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .simulator-container {
+            display: flex;
+            height: 90vh;
+        }
+        
+        .lesson-panel {
+            width: 250px;
+            background-color: #e0e0e0;
+            padding: 15px;
+            border-right: 2px solid #aaa;
+            overflow-y: auto;
+        }
+        
+        .network-panel {
+            flex-grow: 1;
+            padding: 20px;
+            position: relative;
+            background-color: white;
+            overflow: auto;
+        }
+        
+        .terminal {
+            height: 200px;
+            background-color: #1e1e1e;
+            color: #f0f0f0;
+            padding: 10px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        
+        .device {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            border: 2px solid #333;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: #fff;
+            cursor: pointer;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.16);
+        }
+        
+        .router {
+            background-color: #d4edda;
+        }
+        
+        .pc {
+            background-color: #cce5ff;
+        }
+        
+        .connection {
+            position: absolute;
+            height: 2px;
+            background-color: #666;
+            transform-origin: 0 0;
+        }
+        
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            margin: 5px 0;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            text-align: left;
+        }
+        
+        button:hover {
+            background-color: #0069d9;
+        }
+        
+        .active-lesson {
+            background-color: #0056b3;
+            font-weight: bold;
+        }
+        
+        .interface {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #333;
+            border-radius: 50%;
+        }
+        
+        .config-panel {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            width: 300px;
+            background-color: white;
+            border: 1px solid #ddd;
+            padding: 15px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+            display: none;
+        }
+        
+        h3 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        
+        .tab-buttons {
+            display: flex;
+            margin-bottom: 10px;
+        }
+        
+        .tab-button {
+            padding: 5px 10px;
+            background-color: #eee;
+            border: none;
+            cursor: pointer;
+            margin-right: 5px;
+        }
+        
+        .tab-button.active {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 5px;
+            margin: 5px 0;
+        }
+        
+        .ping-result {
+            color: #28a745;
+        }
+        
+        .ping-fail {
+            color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <h1>CCNA Routing Simulator</h1>
+    
+    <div class="simulator-container">
+        <div class="lesson-panel">
+            <h2>CCNA Lessons</h2>
+            <button class="lesson-btn active-lesson" data-lesson="1">1. Basic Router Configuration</button>
+            <button class="lesson-btn" data-lesson="2">2. Static Routing</button>
+            <button class="lesson-btn" data-lesson="3">3. RIP Routing</button>
+            <button class="lesson-btn" data-lesson="4">4. OSPF Routing</button>
+            <button class="lesson-btn" data-lesson="5">5. VLAN Routing</button>
+            
+            <h3>Instructions</h3>
+            <div id="lesson-instructions">
+                <p>Welcome to CCNA Routing Simulator. Click on a router to configure it.</p>
+                <p>Complete each lesson's objectives to progress.</p>
+            </div>
+            
+            <h3>Lesson Objectives</h3>
+            <ul id="lesson-objectives">
+                <li>Access router CLI</li>
+                <li>Configure hostname</li>
+                <li>Set interface IP addresses</li>
+            </ul>
+        </div>
+        
+        <div class="network-panel" id="network-panel">
+            <!-- Network devices will be rendered here -->
+        </div>
+        
+        <div class="config-panel" id="config-panel">
+            <div class="tab-buttons">
+                <button class="tab-button active" data-tab="cli">CLI</button>
+                <button class="tab-button" data-tab="gui">GUI</button>
+                <button class="tab-button" data-tab="ping">Ping Test</button>
+            </div>
+            
+            <div class="tab-content active" data-tab="cli">
+                <textarea id="cli-input" rows="10" style="width: 100%; font-family: 'Courier New';"></textarea>
+                <button id="cli-execute">Execute</button>
+                <button id="cli-help">Help</button>
+            </div>
+            
+            <div class="tab-content" data-tab="gui">
+                <h4>Interface Configuration</h4>
+                <select id="interface-select">
+                    <option value="fastethernet0/0">FastEthernet0/0</option>
+                    <option value="fastethernet0/1">FastEthernet0/1</option>
+                </select>
+                <input type="text" id="ip-address" placeholder="IP Address">
+                <input type="text" id="subnet-mask" placeholder="Subnet Mask">
+                <button id="interface-apply">Apply Configuration</button>
+            </div>
+            
+            <div class="tab-content" data-tab="ping">
+                <input type="text" id="ping-target" placeholder="Target IP">
+                <button id="ping-execute">Ping</button>
+                <div id="ping-results"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="terminal" id="terminal">
+        <div>> CCNA Routing Simulator v1.0</div>
+        <div>> Type 'help' for available commands</div>
+    </div>
+    
+    <script>
+        // Network state
+        const networkState = {
+            devices: {},
+            connections: [],
+            currentLesson: 1,
+            selectedDevice: null
+        };
+        
+        // Initialize the simulator
+        function initSimulator() {
+            renderNetwork();
+            setupEventListeners();
+            updateLessonContent(1);
+        }
+        
+        // Render network based on current lesson
+        function renderNetwork() {
+            const panel = document.getElementById('network-panel');
+            panel.innerHTML = '';
+            
+            // Common devices
+            const router1 = createDevice('Router1', 200, 150, 'router');
+            const router2 = createDevice('Router2', 400, 150, 'router');
+            const pc1 = createDevice('PC1', 100, 300, 'pc');
+            const pc2 = createDevice('PC2', 500, 300, 'pc');
+            
+            // Add interfaces
+            addInterface(router1, 'FastEthernet0/0', 80, 40);
+            addInterface(router1, 'FastEthernet0/1', 0, 40);
+            
+            addInterface(router2, 'FastEthernet0/0', 0, 40);
+            addInterface(router2, 'FastEthernet0/1', 80, 40);
+            
+            addInterface(pc1, 'Ethernet0', 40, 0);
+            addInterface(pc2, 'Ethernet0', 40, 0);
+            
+            // Store devices
+            networkState.devices = {
+                Router1: { 
+                    type: 'router',
+                    interfaces: {
+                        'FastEthernet0/0': { ip: '', subnet: '', status: 'down' },
+                        'FastEthernet0/1': { ip: '', subnet: '', status: 'down' }
+                    },
+                    routes: [],
+                    protocols: []
+                },
+                Router2: { 
+                    type: 'router',
+                    interfaces: {
+                        'FastEthernet0/0': { ip: '', subnet: '', status: 'down' },
+                        'FastEthernet0/1': { ip: '', subnet: '', status: 'down' }
+                    },
+                    routes: [],
+                    protocols: []
+                },
+                PC1: { 
+                    type: 'pc',
+                    interfaces: {
+                        'Ethernet0': { ip: '', subnet: '', gateway: '' }
+                    }
+                },
+                PC2: { 
+                    type: 'pc',
+                    interfaces: {
+                        'Ethernet0': { ip: '', subnet: '', gateway: '' }
+                    }
+                }
+            };
+            
+            // Lesson-specific connections
+            if (networkState.currentLesson === 1 || networkState.currentLesson === 2) {
+                createConnection(router1, 'FastEthernet0/0', pc1, 'Ethernet0');
+                createConnection(router2, 'FastEthernet0/0', pc2, 'Ethernet0');
+                createConnection(router1, 'FastEthernet0/1', router2, 'FastEthernet0/1');
+            }
+            
+            if (networkState.currentLesson >= 3) {
+                // Add another router for advanced lessons
+                const router3 = createDevice('Router3', 300, 50, 'router');
+                addInterface(router3, 'FastEthernet0/0', 0, 40);
+                addInterface(router3, 'FastEthernet0/1', 80, 40);
+                
+                networkState.devices.Router3 = { 
+                    type: 'router',
+                    interfaces: {
+                        'FastEthernet0/0': { ip: '', subnet: '', status: 'down' },
+                        'FastEthernet0/1': { ip: '', subnet: '', status: 'down' }
+                    },
+                    routes: [],
+                    protocols: []
+                };
+                
+                createConnection(router1, 'FastEthernet0/0', router3, 'FastEthernet0/0');
+                createConnection(router2, 'FastEthernet0/0', router3, 'FastEthernet0/1');
+            }
+            
+            if (networkState.currentLesson >= 5) {
+                // Add switch for VLAN lesson
+                const switch1 = createDevice('Switch1', 200, 250, 'switch');
+                const switch2 = createDevice('Switch2', 400, 250, 'switch');
+                
+                networkState.devices.Switch1 = { type: 'switch', vlans: {} };
+                networkState.devices.Switch2 = { type: 'switch', vlans: {} };
+                
+                // Modify connections for VLAN scenario
+                panel.innerHTML = '';
+                createDevice('Router1', 300, 100, 'router');
+                createDevice('Switch1', 200, 200, 'switch');
+                createDevice('Switch2', 400, 200, 'switch');
+                createDevice('PC1', 100, 300, 'pc');
+                createDevice('PC2', 300, 300, 'pc');
+                createDevice('PC3', 500, 300, 'pc');
+                
+                // Would add proper connections here
+            }
+        }
+        
+        function createDevice(name, x, y, type) {
+            const device = document.createElement('div');
+            device.className = `device ${type}`;
+            device.textContent = name;
+            device.style.left = `${x}px`;
+            device.style.top = `${y}px`;
+            device.dataset.name = name;
+            
+            device.addEventListener('click', () => {
+                selectDevice(name);
+            });
+            
+            document.getElementById('network-panel').appendChild(device);
+            return device;
+        }
+        
+        function addInterface(device, name, x, y) {
+            const intf = document.createElement('div');
+            intf.className = 'interface';
+            intf.style.left = `${x}px`;
+            intf.style.top = `${y}px`;
+            intf.dataset.name = name;
+            device.appendChild(intf);
+        }
+        
+        function createConnection(device1, intf1, device2, intf2) {
+            // This is a simplified connection visualization
+            // In a real implementation, you'd calculate proper positions
+            const line = document.createElement('div');
+            line.className = 'connection';
+            
+            const x1 = parseInt(device1.style.left) + 40;
+            const y1 = parseInt(device1.style.top) + 40;
+            const x2 = parseInt(device2.style.left) + 40;
+            const y2 = parseInt(device2.style.top) + 40;
+            
+            const length = Math.sqrt(Math.pow(x2-x1, 2) + Math.pow(y2-y1, 2));
+            const angle = Math.atan2(y2-y1, x2-x1) * 180 / Math.PI;
+            
+            line.style.width = `${length}px`;
+            line.style.left = `${x1}px`;
+            line.style.top = `${y1}px`;
+            line.style.transform = `rotate(${angle}deg)`;
+            
+            document.getElementById('network-panel').appendChild(line);
+            networkState.connections.push({
+                devices: [device1.dataset.name, device2.dataset.name],
+                interfaces: [intf1, intf2]
+            });
+        }
+        
+        function selectDevice(name) {
+            networkState.selectedDevice = name;
+            document.getElementById('config-panel').style.display = 'block';
+            updateCLIPrompt();
+        }
+        
+        function updateCLIPrompt() {
+            const device = networkState.selectedDevice;
+            const cliInput = document.getElementById('cli-input');
+            cliInput.value = '';
+            
+            if (device) {
+                const prompt = networkState.devices[device].type === 'router' ? 
+                    `${device}(config)#` : `${device}>`;
+                cliInput.placeholder = prompt;
+            }
+        }
+        
+        function setupEventListeners() {
+            // Lesson buttons
+            document.querySelectorAll('.lesson-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const lesson = parseInt(btn.dataset.lesson);
+                    networkState.currentLesson = lesson;
+                    updateLessonContent(lesson);
+                    renderNetwork();
+                    
+                    // Update active button
+                    document.querySelectorAll('.lesson-btn').forEach(b => {
+                        b.classList.remove('active-lesson');
+                    });
+                    btn.classList.add('active-lesson');
+                });
+            });
+            
+            // Tab buttons
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const tab = btn.dataset.tab;
+                    
+                    document.querySelectorAll('.tab-button').forEach(b => {
+                        b.classList.remove('active');
+                    });
+                    btn.classList.add('active');
+                    
+                    document.querySelectorAll('.tab-content').forEach(content => {
+                        content.classList.remove('active');
+                    });
+                    document.querySelector(`.tab-content[data-tab="${tab}"]`).classList.add('active');
+                });
+            });
+            
+            // CLI Execute
+            document.getElementById('cli-execute').addEventListener('click', executeCLI);
+            
+            // CLI Help
+            document.getElementById('cli-help').addEventListener('click', showHelp);
+            
+            // Interface Apply
+            document.getElementById('interface-apply').addEventListener('click', applyInterfaceConfig);
+            
+            // Ping Execute
+            document.getElementById('ping-execute').addEventListener('click', executePing);
+        }
+        
+        function executeCLI() {
+            const input = document.getElementById('cli-input').value.trim();
+            const device = networkState.selectedDevice;
+            const deviceState = networkState.devices[device];
+            const terminal = document.getElementById('terminal');
+            
+            if (!input) return;
+            
+            // Add command to terminal
+            terminal.innerHTML += `<div>${device}${deviceState.type === 'router' ? '(config)' : ''}# ${input}</div>`;
+            
+            // Process command
+            const parts = input.split(' ');
+            const cmd = parts[0].toLowerCase();
+            
+            if (cmd === 'enable') {
+                terminal.innerHTML += `<div>${device}#</div>`;
+            }
+            else if (cmd === 'conf' || cmd === 'configure' || cmd === 'configure terminal') {
+                terminal.innerHTML += `<div>Enter configuration commands, one per line. End with CNTL/Z.</div>`;
+                terminal.innerHTML += `<div>${device}(config)#</div>`;
+            }
+            else if (cmd === 'hostname' && parts.length > 1) {
+                const newName = parts[1];
+                deviceState.hostname = newName;
+                terminal.innerHTML += `<div>${device}(config)#</div>`;
+                
+                // Update device display name
+                document.querySelector(`.device[data-name="${device}"]`).textContent = newName;
+                document.querySelector(`.device[data-name="${device}"]`).dataset.name = newName;
+                networkState.devices[newName] = networkState.devices[device];
+                delete networkState.devices[device];
+                networkState.selectedDevice = newName;
+            }
+            else if (cmd === 'interface' && parts.length > 1) {
+                const intf = parts[1];
+                if (deviceState.interfaces && deviceState.interfaces[intf]) {
+                    terminal.innerHTML += `<div>${device}(config-if)#</div>`;
+                } else {
+                    terminal.innerHTML += `<div class="ping-fail">Invalid interface ${intf}</div>`;
+                }
+            }
+            else if (cmd === 'ip' && parts[1] === 'address' && parts.length > 3) {
+                const ip = parts[2];
+                const mask = parts[3];
+                
+                // This would actually need to know which interface is being configured
+                // Simplified for demo
+                for (const intf in deviceState.interfaces) {
+                    deviceState.interfaces[intf].ip = ip;
+                    deviceState.interfaces[intf].subnet = mask;
+                    deviceState.interfaces[intf].status = 'up';
+                }
+                
+                terminal.innerHTML += `<div>${device}(config-if)#</div>`;
+            }
+            else if (cmd === 'no' && parts[1] === 'shutdown') {
+                // This would need interface context
+                terminal.innerHTML += `<div>${device}(config-if)#</div>`;
+            }
+            else if (cmd === 'show' && parts[1] === 'ip' && parts[2] === 'interface' && parts[3] === 'brief') {
+                let output = `<div>Interface                  IP-Address      OK? Method Status                Protocol</div>`;
+                for (const intf in deviceState.interfaces) {
+                    const intfState = deviceState.interfaces[intf];
+                    output += `<div>${intf.padEnd(25)} ${intfState.ip.padEnd(15)} YES manual ${intfState.status === 'up' ? 'up'.padEnd(20) : 'down'.padEnd(20)} ${intfState.status === 'up' ? 'up' : 'down'}</div>`;
+                }
+                terminal.innerHTML += output;
+            }
+            else if (cmd === 'ping' && parts.length > 1) {
+                const target = parts[1];
+                // Simplified ping - would actually check routing tables
+                terminal.innerHTML += `<div>Type escape sequence to abort.</div>`;
+                terminal.innerHTML += `<div>Sending 5, 100-byte ICMP Echos to ${target}, timeout is 2 seconds:</div>`;
+                terminal.innerHTML += `<div class="ping-result">!!!!!</div>`;
+                terminal.innerHTML += `<div>Success rate is 100 percent (5/5), round-trip min/avg/max = 1/2/8 ms</div>`;
+            }
+            else if (cmd === 'exit') {
+                terminal.innerHTML += `<div>${device}#</div>`;
+            }
+            else {
+                terminal.innerHTML += `<div class="ping-fail">Invalid command: ${input}</div>`;
+            }
+            
+            // Clear input
+            document.getElementById('cli-input').value = '';
+            
+            // Scroll to bottom
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+        
+        function showHelp() {
+            const terminal = document.getElementById('terminal');
+            terminal.innerHTML += `<div>Available commands:</div>`;
+            terminal.innerHTML += `<div>  enable                      Enter privileged mode</div>`;
+            terminal.innerHTML += `<div>  configure terminal          Enter global configuration mode</div>`;
+            terminal.innerHTML += `<div>  hostname [name]             Set device name</div>`;
+            terminal.innerHTML += `<div>  interface [name]            Select interface</div>`;
+            terminal.innerHTML += `<div>  ip address [ip] [mask]      Configure IP address</div>`;
+            terminal.innerHTML += `<div>  no shutdown                 Enable interface</div>`;
+            terminal.innerHTML += `<div>  show ip interface brief     Show interface status</div>`;
+            terminal.innerHTML += `<div>  ping [ip]                   Test connectivity</div>`;
+            terminal.innerHTML += `<div>  exit                        Exit current mode</div>`;
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+        
+        function applyInterfaceConfig() {
+            const intf = document.getElementById('interface-select').value;
+            const ip = document.getElementById('ip-address').value;
+            const mask = document.getElementById('subnet-mask').value;
+            const device = networkState.selectedDevice;
+            
+            if (networkState.devices[device].interfaces[intf]) {
+                networkState.devices[device].interfaces[intf] = {
+                    ip: ip,
+                    subnet: mask,
+                    status: ip ? 'up' : 'down'
+                };
+                
+                const terminal = document.getElementById('terminal');
+                terminal.innerHTML += `<div>${device}(config-if)# interface ${intf}</div>`;
+                terminal.innerHTML += `<div>${device}(config-if)# ip address ${ip} ${mask}</div>`;
+                terminal.innerHTML += `<div>${device}(config-if)# no shutdown</div>`;
+                terminal.scrollTop = terminal.scrollHeight;
+            }
+        }
+        
+        function executePing() {
+            const target = document.getElementById('ping-target').value;
+            const results = document.getElementById('ping-results');
+            
+            if (!target) return;
+            
+            // Simplified ping - would actually check routing tables
+            results.innerHTML = `
+                <div>Type escape sequence to abort.</div>
+                <div>Sending 5, 100-byte ICMP Echos to ${target}, timeout is 2 seconds:</div>
+                <div class="ping-result">!!!!!</div>
+                <div>Success rate is 100 percent (5/5), round-trip min/avg/max = 1/2/8 ms</div>
+            `;
+        }
+        
+        function updateLessonContent(lesson) {
+            const instructions = document.getElementById('lesson-instructions');
+            const objectives = document.getElementById('lesson-objectives');
+            
+            switch(lesson) {
+                case 1:
+                    instructions.innerHTML = `
+                        <h4>Basic Router Configuration</h4>
+                        <p>Learn how to configure basic router settings including:</p>
+                        <ul>
+                            <li>Setting the hostname</li>
+                            <li>Configuring interface IP addresses</li>
+                            <li>Enabling interfaces</li>
+                        </ul>
+                    `;
+                    objectives.innerHTML = `
+                        <li>Configure hostname on Router1</li>
+                        <li>Set IP address on FastEthernet0/0</li>
+                        <li>Enable the interface (no shutdown)</li>
+                    `;
+                    break;
+                    
+                case 2:
+                    instructions.innerHTML = `
+                        <h4>Static Routing</h4>
+                        <p>Configure static routes to allow communication between networks:</p>
+                        <ul>
+                            <li>Add static routes using ip route command</li>
+                            <li>Verify connectivity with ping</li>
+                            <li>Understand administrative distance</li>
+                        </ul>
+                    `;
+                    objectives.innerHTML = `
+                        <li>Configure IP addresses on all interfaces</li>
+                        <li>Add static route on Router1 to reach PC2's network</li>
+                        <li>Add static route on Router2 to reach PC1's network</li>
+                        <li>Verify end-to-end connectivity</li>
+                    `;
+                    break;
+                    
+                case 3:
+                    instructions.innerHTML = `
+                        <h4>RIP Routing</h4>
+                        <p>Configure RIP (Routing Information Protocol) version 2:</p>
+                        <ul>
+                            <li>Enable RIP with router rip command</li>
+                            <li>Advertise networks with network statements</li>
+                            <li>Verify routing tables</li>
+                        </ul>
+                    `;
+                    objectives.innerHTML = `
+                        <li>Configure RIP on all routers</li>
+                        <li>Advertise connected networks</li>
+                        <li>Verify routes are learned with 'show ip route'</li>
+                        <li>Test connectivity between all devices</li>
+                    `;
+                    break;
+                    
+                case 4:
+                    instructions.innerHTML = `
+                        <h4>OSPF Routing</h4>
+                        <p>Configure OSPF (Open Shortest Path First) routing protocol:</p>
+                        <ul>
+                            <li>Configure OSPF process and area</li>
+                            <li>Advertise networks with wildcard masks</li>
+                            <li>Verify neighbor adjacencies</li>
+                        </ul>
+                    `;
+                    objectives.innerHTML = `
+                        <li>Configure OSPF on all routers in area 0</li>
+                        <li>Advertise all networks</li>
+                        <li>Verify neighbors with 'show ip ospf neighbor'</li>
+                        <li>Check routing tables for OSPF routes</li>
+                    `;
+                    break;
+                    
+                case 5:
+                    instructions.innerHTML = `
+                        <h4>VLAN Routing</h4>
+                        <p>Configure inter-VLAN routing using router-on-a-stick:</p>
+                        <ul>
+                            <li>Create VLANs on switches</li>
+                            <li>Configure trunk ports</li>
+                            <li>Set up subinterfaces on router</li>
+                        </ul>
+                    `;
+                    objectives.innerHTML = `
+                        <li>Create VLANs 10 and 20 on switches</li>
+                        <li>Configure access ports for PCs</li>
+                        <li>Set up trunk to router</li>
+                        <li>Configure subinterfaces with 802.1Q</li>
+                        <li>Verify inter-VLAN connectivity</li>
+                    `;
+                    break;
+            }
+        }
+        
+        // Initialize when page loads
+        window.onload = initSimulator;
+    </script>
+</body>
+</html>
